@@ -1,7 +1,11 @@
 package net.dreamscape.crisp;
 
 import com.mojang.logging.LogUtils;
+import net.dreamscape.crisp.entity.renderer.ButterflyRenderer;
+import net.dreamscape.crisp.item.CrispItems;
+import net.dreamscape.crisp.registry.CrispEntityTypes;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
@@ -41,15 +45,16 @@ public class CrispAmbience
 
         GeckoLib.initialize();
 
+        // CrispAmbience Registries
+        CrispEntityTypes.register(modEventBus);
+        CrispItems.register(modEventBus);
+
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event)
     {
-        // Some common setup code
-        LOGGER.info("HELLO FROM COMMON SETUP");
-        LOGGER.info("DIRT BLOCK >> {}", ForgeRegistries.BLOCKS.getKey(Blocks.DIRT));
     }
 
     // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
@@ -59,7 +64,7 @@ public class CrispAmbience
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event)
         {
-
+            EntityRenderers.register(CrispEntityTypes.BUTTERFLY.get(), ButterflyRenderer::new);
         }
     }
 }
