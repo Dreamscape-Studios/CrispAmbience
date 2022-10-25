@@ -46,6 +46,10 @@ import software.bernie.geckolib3.core.manager.AnimationFactory;
 import java.util.EnumSet;
 import java.util.UUID;
 
+/**
+*  Rework the `animation.butterfly.fly` animation and create an idle animation {@link net.dreamscape.crisp.entity.ButterflyEntity#predicate(AnimationEvent)}
+*/
+
 public class ButterflyEntity extends AmbientCreature implements IAnimatable, NeutralMob, FlyingAnimal {
 
     // Geckolib
@@ -53,8 +57,14 @@ public class ButterflyEntity extends AmbientCreature implements IAnimatable, Neu
     private <E extends IAnimatable> PlayState predicate(AnimationEvent<E> event) {
         if (!isResting()) {
             event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.butterfly.fly", ILoopType.EDefaultLoopTypes.LOOP));
+            event.getController().setAnimationSpeed(5.0D);
         } else {
-            //event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.butterfly.idle", ILoopType.EDefaultLoopTypes.LOOP));
+            event.getController().setAnimationSpeed(1.0D);
+            if (this.random.nextInt(200) == 0) {
+                event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.butterfly.flap", ILoopType.EDefaultLoopTypes.PLAY_ONCE));
+            } else {
+                event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.butterfly.idle", ILoopType.EDefaultLoopTypes.LOOP));
+            }
         }
         return PlayState.CONTINUE;
     }
@@ -73,8 +83,8 @@ public class ButterflyEntity extends AmbientCreature implements IAnimatable, Neu
     private static final EntityDataAccessor<Byte> DATA_ID_FLAGS = SynchedEntityData.defineId(ButterflyEntity.class, EntityDataSerializers.BYTE);
     private static final TargetingConditions BUTTERFLY_RESTING_TARGETING = TargetingConditions.forNonCombat().range(4.0D);
 
-    private final double horizontalSpeed = 0.5D;
-    private final double verticalSpeed = 0.25D;
+    private final double horizontalSpeed = 0.25D;
+    private final double verticalSpeed = 0.7D;
 
 
     public ButterflyEntity(EntityType<? extends AmbientCreature> entityType, Level level) {
@@ -165,6 +175,7 @@ public class ButterflyEntity extends AmbientCreature implements IAnimatable, Neu
         super.customServerAiStep();
         BlockPos currPos = this.blockPosition();
         BlockPos abovePos = currPos.above();
+
         if (this.isResting()) {
             boolean flag = this.isSilent();
             if (this.level.getBlockState(abovePos).isRedstoneConductor(this.level, currPos)) {
