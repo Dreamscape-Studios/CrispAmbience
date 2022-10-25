@@ -1,7 +1,13 @@
 package net.dreamscape.crisp.entity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.NeutralMob;
@@ -9,14 +15,21 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.FlyingMoveControl;
 import net.minecraft.world.entity.ai.goal.*;
+import net.minecraft.world.entity.ai.navigation.FlyingPathNavigation;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 import net.minecraft.world.entity.ai.util.AirAndWaterRandomPos;
 import net.minecraft.world.entity.ai.util.HoverRandomPos;
+import net.minecraft.world.entity.ambient.AmbientCreature;
+import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.Bee;
 import net.minecraft.world.entity.animal.FlyingAnimal;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
@@ -33,14 +46,41 @@ import software.bernie.geckolib3.core.manager.AnimationFactory;
 import java.util.EnumSet;
 import java.util.UUID;
 
-public class ButterflyEntity extends Animal implements IAnimatable, NeutralMob, FlyingAnimal {
-    private static final Ingredient FOOD_ITEMS = Ingredient.of(Items.POPPY);
+public class ButterflyEntity extends AmbientCreature implements IAnimatable, NeutralMob, FlyingAnimal {
 
+    // Geckolib
     private final AnimationFactory factory = new AnimationFactory(this);
+    private <E extends IAnimatable> PlayState predicate(AnimationEvent<E> event) {
+        if (!isResting()) {
+            event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.butterfly.fly", ILoopType.EDefaultLoopTypes.LOOP));
+        } else {
+            //event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.butterfly.idle", ILoopType.EDefaultLoopTypes.LOOP));
+        }
+        return PlayState.CONTINUE;
+    }
+    @Override
+    public void registerControllers(AnimationData data) {
+        data.addAnimationController(new AnimationController(this, "controller", 0, this::predicate));
+    }
+    @Override
+    public AnimationFactory getFactory() {
+        return factory;
+    }
 
-    public ButterflyEntity(EntityType<? extends Animal> entityType, Level level) {
+    // Initialization
+    @Nullable
+    private BlockPos targetPosition;
+    private static final EntityDataAccessor<Byte> DATA_ID_FLAGS = SynchedEntityData.defineId(ButterflyEntity.class, EntityDataSerializers.BYTE);
+    private static final TargetingConditions BUTTERFLY_RESTING_TARGETING = TargetingConditions.forNonCombat().range(4.0D);
+
+    private final double horizontalSpeed = 0.5D;
+    private final double verticalSpeed = 0.25D;
+
+
+    public ButterflyEntity(EntityType<? extends AmbientCreature> entityType, Level level) {
         super(entityType, level);
         this.moveControl = new FlyingMoveControl(this, 20, true);
+        this.navigation = createNavigation(level);
         this.lookControl = this.getLookControl();
         this.setPathfindingMalus(BlockPathTypes.DANGER_FIRE, -1.0F);
         this.setPathfindingMalus(BlockPathTypes.WATER, -1.0F);
@@ -49,41 +89,25 @@ public class ButterflyEntity extends Animal implements IAnimatable, NeutralMob, 
         this.setPathfindingMalus(BlockPathTypes.FENCE, -1.0F);
     }
 
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_ID_FLAGS, (byte)0);
+    }
+
 
     public static AttributeSupplier setAttributes() {
         return Animal.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 1.5f)
                 .add(Attributes.ATTACK_DAMAGE, 0.0f)
                 .add(Attributes.ATTACK_SPEED, 0.2f)
-                .add(Attributes.FLYING_SPEED, 0.6f)
+                .add(Attributes.FLYING_SPEED, 0.1f)
                 .build();
     }
 
-    private <E extends IAnimatable> PlayState predicate(AnimationEvent<E> event) {
-        event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.butterfly.fly", ILoopType.EDefaultLoopTypes.LOOP));
-        return PlayState.CONTINUE;
-    }
-
+    // Logic
     @Override
-    protected void registerGoals() {
-        this.goalSelector.addGoal(1, new ButterflyWanderGoal());
-        this.goalSelector.addGoal(2, new FloatGoal(this));
-    }
-
-    @Nullable
-    @Override
-    public AgeableMob getBreedOffspring(@NotNull ServerLevel level, @NotNull AgeableMob mob) {
-        return null;
-    }
-
-    @Override
-    public void registerControllers(AnimationData data) {
-        data.addAnimationController(new AnimationController(this, "controller", 0, this::predicate));
-    }
-
-    @Override
-    public AnimationFactory getFactory() {
-        return factory;
+    public boolean isFlying() {
+        return !this.onGround;
     }
 
     @Override
@@ -112,50 +136,118 @@ public class ButterflyEntity extends Animal implements IAnimatable, NeutralMob, 
 
     }
 
-    @Override
-    public boolean isFlying() {
-        return !this.onGround;
+    // Bat Logic
+    public boolean isResting() {
+        return (this.entityData.get(DATA_ID_FLAGS) & 1) != 0;
     }
 
-    class ButterflyWanderGoal extends Goal {
-        ButterflyWanderGoal() {
-            this.setFlags(EnumSet.of(Flag.MOVE));
+    public void setResting(boolean pIsResting) {
+        byte b0 = this.entityData.get(DATA_ID_FLAGS);
+        if (pIsResting) {
+            this.entityData.set(DATA_ID_FLAGS, (byte)(b0 | 1));
+        } else {
+            this.entityData.set(DATA_ID_FLAGS, (byte)(b0 & -2));
         }
 
-        /**
-         * Returns whether execution should begin. You can also read and cache any state necessary for execution in this
-         * method as well.
-         */
-        public boolean canUse() {
-            return ButterflyEntity.this.navigation.isDone() && ButterflyEntity.this.random.nextInt(2) == 0;
+    }
+
+    public void tick() {
+        super.tick();
+        if (this.isResting()) {
+            this.setDeltaMovement(Vec3.ZERO);
+            this.setPosRaw(this.getX(), (double)Mth.floor(this.getY()) + 1.0D - (double)this.getBbHeight(), this.getZ());
+        } else {
+            this.setDeltaMovement(this.getDeltaMovement().multiply(1.0D, 0.6D, 1.0D));
         }
 
-        /**
-         * Returns whether an in-progress EntityAIBase should continue executing
-         */
-        public boolean canContinueToUse() {
-            return true;
-        }
+    }
+    protected void customServerAiStep() {
+        super.customServerAiStep();
+        BlockPos currPos = this.blockPosition();
+        BlockPos abovePos = currPos.above();
+        if (this.isResting()) {
+            boolean flag = this.isSilent();
+            if (this.level.getBlockState(abovePos).isRedstoneConductor(this.level, currPos)) {
+                if (this.random.nextInt(200) == 0) {
+                    this.yHeadRot = (float)this.random.nextInt(360);
+                }
 
-        /**
-         * Execute a one shot task or start executing a continuous task
-         */
-        public void start() {
-            Vec3 vec3 = this.findPos();
-            if (vec3 != null) {
-                ButterflyEntity.this.navigation.moveTo(ButterflyEntity.this.navigation.createPath(new BlockPos(vec3), 1), 0.2f);
+                if (this.level.getNearestPlayer(BUTTERFLY_RESTING_TARGETING, this) != null) {
+                    this.setResting(false);
+                    if (!flag) {
+                        this.level.levelEvent((Player)null, 1025, currPos, 0);
+                    }
+                }
+            } else {
+                this.setResting(false);
+                if (!flag) {
+                    this.level.levelEvent((Player)null, 1025, currPos, 0);
+                }
+            }
+        } else {
+            if (this.targetPosition != null && (!this.level.isEmptyBlock(this.targetPosition) || this.targetPosition.getY() <= this.level.getMinBuildHeight())) {
+                this.targetPosition = null;
             }
 
+            if (this.targetPosition == null || this.random.nextInt(30) == 0 || this.targetPosition.closerToCenterThan(this.position(), 2.0D)) {
+                this.targetPosition = new BlockPos(this.getX() + (double)this.random.nextInt(7) - (double)this.random.nextInt(7), this.getY() + (double)this.random.nextInt(6) - 2.0D, this.getZ() + (double)this.random.nextInt(7) - (double)this.random.nextInt(7));
+            }
+
+            double d2 = (double)this.targetPosition.getX() + 0.5D - this.getX();
+            double d0 = (double)this.targetPosition.getY() + 0.1D - this.getY();
+            double d1 = (double)this.targetPosition.getZ() + 0.5D - this.getZ();
+            Vec3 vec3 = this.getDeltaMovement();
+            Vec3 vec31 = vec3.add((Math.signum(d2) * horizontalSpeed - vec3.x) * (double)0.1F, (Math.signum(d0) * verticalSpeed - vec3.y) * (double)0.1F, (Math.signum(d1) * horizontalSpeed - vec3.z) * (double)0.1F);
+            this.setDeltaMovement(vec31);
+            float f = (float)(Mth.atan2(vec31.z, vec31.x) * (double)(180F / (float)Math.PI)) - 90.0F;
+            float f1 = Mth.wrapDegrees(f - this.getYRot());
+            this.zza = 0.5F;
+            this.setYRot(this.getYRot() + f1);
+            if (this.random.nextInt(100) == 0 && this.level.getBlockState(abovePos).isRedstoneConductor(this.level, abovePos)) {
+                this.setResting(true);
+            }
         }
 
-        @Nullable
-        private Vec3 findPos() {
-            Vec3 vec3;
-            vec3 = ButterflyEntity.this.getViewVector(0.0F);
+    }
 
-            int i = 8;
-            Vec3 vec32 = HoverRandomPos.getPos(ButterflyEntity.this, 3, 6, vec3.x, vec3.z, ((float)Math.PI / 2F), 3, 2);
-            return vec32 != null ? vec32 : AirAndWaterRandomPos.getPos(ButterflyEntity.this, 8, 8, -2, vec3.x, vec3.z, (double)((float)Math.PI / 2F));
+    public boolean causeFallDamage(float fallDistance, float multiplier, DamageSource source) {
+        return false;
+    }
+
+    protected void checkFallDamage(double pY, boolean pOnGround, BlockState state, BlockPos pos) {
+    }
+
+    /**
+     * Return whether this entity should NOT trigger a pressure plate or a tripwire.
+     */
+    public boolean isIgnoringBlockTriggers() {
+        return true;
+    }
+
+    /**
+     * Called when the entity is attacked.
+     */
+    public boolean hurt(DamageSource source, float amount) {
+        if (this.isInvulnerableTo(source)) {
+            return false;
+        } else {
+            if (!this.level.isClientSide && this.isResting()) {
+                this.setResting(false);
+            }
+
+            return super.hurt(source, amount);
         }
     }
+
+    // NBT Data
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        this.entityData.set(DATA_ID_FLAGS, tag.getByte("ButterflyFlags"));
+    }
+
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putByte("ButterflyFlags", this.entityData.get(DATA_ID_FLAGS));
+    }
+
 }
