@@ -15,8 +15,7 @@ public class CrispEntityTypes {
     public static final DeferredRegister<EntityType<?>> ENTITY_TYPES =
             DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, CrispAmbience.MOD_ID);
 
-    public static final RegistryObject<EntityType<ButterflyEntity>> BUTTERFLY =
-            ENTITY_TYPES.register("butterfly",
+    public static final RegistryObject<EntityType<ButterflyEntity>> BUTTERFLY = ENTITY_TYPES.register("butterfly",
                     () -> EntityType.Builder.of(ButterflyEntity::new, MobCategory.AMBIENT)
                             .sized(0.3f, 0.15f)
                             .build(new ResourceLocation(CrispAmbience.MOD_ID, "butterfly").toString()));

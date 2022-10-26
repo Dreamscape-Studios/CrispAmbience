@@ -1,4 +1,4 @@
-package net.dreamscape.crisp.item;
+package net.dreamscape.crisp.registry;
 
 import net.dreamscape.crisp.CrispAmbience;
 import net.dreamscape.crisp.registry.CrispEntityTypes;

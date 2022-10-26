@@ -34,6 +34,7 @@ import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import software.bernie.geckolib3.core.AnimationState;
 import software.bernie.geckolib3.core.IAnimatable;
 import software.bernie.geckolib3.core.PlayState;
 import software.bernie.geckolib3.core.builder.AnimationBuilder;
@@ -47,8 +48,8 @@ import java.util.EnumSet;
 import java.util.UUID;
 
 /**
-*  Rework the `animation.butterfly.fly` animation and create an idle animation {@link net.dreamscape.crisp.entity.ButterflyEntity#predicate(AnimationEvent)}
-*/
+ *  Rework the `animation.butterfly.fly` animation and create an idle animation {@link net.dreamscape.crisp.entity.ButterflyEntity#predicate(AnimationEvent)}
+ */
 
 public class ButterflyEntity extends AmbientCreature implements IAnimatable, NeutralMob, FlyingAnimal {
 
@@ -62,8 +63,10 @@ public class ButterflyEntity extends AmbientCreature implements IAnimatable, Neu
             event.getController().setAnimationSpeed(1.0D);
             if (this.random.nextInt(200) == 0) {
                 event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.butterfly.flap", ILoopType.EDefaultLoopTypes.PLAY_ONCE));
-            } else {
-                event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.butterfly.idle", ILoopType.EDefaultLoopTypes.LOOP));
+            } else if (event.getController().getCurrentAnimation() != null) {
+                if (event.getController().getCurrentAnimation().animationName != "animation.butterfly.flap") {
+                    event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.butterfly.idle", ILoopType.EDefaultLoopTypes.LOOP));
+                }
             }
         }
         return PlayState.CONTINUE;
@@ -164,8 +167,12 @@ public class ButterflyEntity extends AmbientCreature implements IAnimatable, Neu
     public void tick() {
         super.tick();
         if (this.isResting()) {
-            this.setDeltaMovement(Vec3.ZERO);
-            this.setPosRaw(this.getX(), (double)Mth.floor(this.getY()) + 1.0D - (double)this.getBbHeight(), this.getZ());
+            if (isOnGround()) {
+                this.setDeltaMovement(Vec3.ZERO);
+            } else {
+                this.setDeltaMovement(0.0D, (-2.0D), 0.0D);
+            }
+            //this.setPosRaw(this.getX(), (double)Mth.floor(this.getY()) + 1.0D - (double)this.getBbHeight(), this.getZ());
         } else {
             this.setDeltaMovement(this.getDeltaMovement().multiply(1.0D, 0.6D, 1.0D));
         }
@@ -174,13 +181,13 @@ public class ButterflyEntity extends AmbientCreature implements IAnimatable, Neu
     protected void customServerAiStep() {
         super.customServerAiStep();
         BlockPos currPos = this.blockPosition();
-        BlockPos abovePos = currPos.above();
+        BlockPos belowPos = currPos.below();
 
         if (this.isResting()) {
             boolean flag = this.isSilent();
-            if (this.level.getBlockState(abovePos).isRedstoneConductor(this.level, currPos)) {
-                if (this.random.nextInt(200) == 0) {
-                    this.yHeadRot = (float)this.random.nextInt(360);
+            if (this.level.getBlockState(belowPos).isRedstoneConductor(this.level, currPos)) {
+                if (this.random.nextInt(15000) == 0) {
+                    setResting(false);
                 }
 
                 if (this.level.getNearestPlayer(BUTTERFLY_RESTING_TARGETING, this) != null) {
@@ -214,7 +221,7 @@ public class ButterflyEntity extends AmbientCreature implements IAnimatable, Neu
             float f1 = Mth.wrapDegrees(f - this.getYRot());
             this.zza = 0.5F;
             this.setYRot(this.getYRot() + f1);
-            if (this.random.nextInt(100) == 0 && this.level.getBlockState(abovePos).isRedstoneConductor(this.level, abovePos)) {
+            if (this.random.nextInt(100) == 0 && this.level.getBlockState(belowPos).isRedstoneConductor(this.level, currPos)) {
                 this.setResting(true);
             }
         }

@@ -9,12 +9,12 @@ import net.minecraftforge.fml.common.Mod;
 
 public class CrispEvents {
     @Mod.EventBusSubscriber(modid = CrispAmbience.MOD_ID)
-    public class ForgeEvent {
+    public static class ForgeEvent {
 
     }
 
     @Mod.EventBusSubscriber(modid = CrispAmbience.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD)
-    public class ModEventBusEvents {
+    public static class ModEventBusEvents {
         @SubscribeEvent
         public static void entityAttributeEvent(EntityAttributeCreationEvent event) {
             event.put(CrispEntityTypes.BUTTERFLY.get(), ButterflyEntity.setAttributes());
