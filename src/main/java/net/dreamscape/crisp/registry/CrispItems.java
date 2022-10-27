@@ -18,6 +18,10 @@ public class CrispItems {
             () -> new ForgeSpawnEggItem(CrispEntityTypes.BUTTERFLY, 0x2225f224, 0x194e513,
                     new Item.Properties().tab(CreativeModeTab.TAB_MISC)));
 
+    public static final RegistryObject<Item> SNAIL_SPAWN_EGG = ITEMS.register("snail_spawn_egg",
+            () -> new ForgeSpawnEggItem(CrispEntityTypes.SNAIL, 0x2345f624, 0x124ba133,
+                    new Item.Properties().tab(CreativeModeTab.TAB_MISC)));
+
     public static void register(IEventBus event) {
         ITEMS.register(event);
     }

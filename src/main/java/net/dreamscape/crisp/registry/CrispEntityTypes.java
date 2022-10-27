@@ -2,6 +2,7 @@ package net.dreamscape.crisp.registry;
 
 import net.dreamscape.crisp.CrispAmbience;
 import net.dreamscape.crisp.entity.ButterflyEntity;
+import net.dreamscape.crisp.entity.SnailEntity;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -16,9 +17,14 @@ public class CrispEntityTypes {
             DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, CrispAmbience.MOD_ID);
 
     public static final RegistryObject<EntityType<ButterflyEntity>> BUTTERFLY = ENTITY_TYPES.register("butterfly",
-                    () -> EntityType.Builder.of(ButterflyEntity::new, MobCategory.AMBIENT)
-                            .sized(0.3f, 0.15f)
-                            .build(new ResourceLocation(CrispAmbience.MOD_ID, "butterfly").toString()));
+            () -> EntityType.Builder.of(ButterflyEntity::new, MobCategory.AMBIENT)
+                    .sized(0.3f, 0.15f)
+                    .build(new ResourceLocation(CrispAmbience.MOD_ID, "butterfly").toString()));
+
+    public static final RegistryObject<EntityType<SnailEntity>> SNAIL = ENTITY_TYPES.register("snail",
+            () -> EntityType.Builder.of(SnailEntity::new, MobCategory.AMBIENT)
+                    .sized(0.25f, 0.35f)
+                    .build(new ResourceLocation(CrispAmbience.MOD_ID, "snail").toString()));
 
     public static void register(IEventBus event) {
         ENTITY_TYPES.register(event);

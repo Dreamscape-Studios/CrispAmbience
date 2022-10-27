@@ -2,6 +2,7 @@ package net.dreamscape.crisp.event;
 
 import net.dreamscape.crisp.CrispAmbience;
 import net.dreamscape.crisp.entity.ButterflyEntity;
+import net.dreamscape.crisp.entity.SnailEntity;
 import net.dreamscape.crisp.registry.CrispEntityTypes;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -18,6 +19,7 @@ public class CrispEvents {
         @SubscribeEvent
         public static void entityAttributeEvent(EntityAttributeCreationEvent event) {
             event.put(CrispEntityTypes.BUTTERFLY.get(), ButterflyEntity.setAttributes());
+            event.put(CrispEntityTypes.SNAIL.get(), SnailEntity.setAttributes());
         }
     }
 }

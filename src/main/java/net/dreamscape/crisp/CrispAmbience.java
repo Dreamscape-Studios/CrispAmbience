@@ -2,6 +2,7 @@ package net.dreamscape.crisp;
 
 import com.mojang.logging.LogUtils;
 import net.dreamscape.crisp.entity.renderer.ButterflyRenderer;
+import net.dreamscape.crisp.entity.renderer.SnailRenderer;
 import net.dreamscape.crisp.registry.CrispItems;
 import net.dreamscape.crisp.registry.CrispEntityTypes;
 import net.minecraft.client.renderer.entity.EntityRenderers;
@@ -53,6 +54,7 @@ public class CrispAmbience
         public static void onClientSetup(FMLClientSetupEvent event)
         {
             EntityRenderers.register(CrispEntityTypes.BUTTERFLY.get(), ButterflyRenderer::new);
+            EntityRenderers.register(CrispEntityTypes.SNAIL.get(), SnailRenderer::new);
         }
     }
 }
