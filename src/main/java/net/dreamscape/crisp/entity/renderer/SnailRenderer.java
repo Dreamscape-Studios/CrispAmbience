@@ -19,7 +19,7 @@ import software.bernie.geckolib3.renderers.geo.GeoEntityRenderer;
 public class SnailRenderer extends GeoEntityRenderer<SnailEntity> {
     public SnailRenderer(EntityRendererProvider.Context renderManager) {
         super(renderManager, new SnailModel());
-        this.shadowRadius = 0.3f;
+        this.shadowRadius = 0.2f;
     }
 
 
