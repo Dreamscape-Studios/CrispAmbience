@@ -123,6 +123,11 @@ public class ButterflyEntity extends AmbientCreature implements IAnimatable, Neu
                 .build();
     }
 
+    @Override
+    protected void registerGoals() {
+        this.goalSelector.addGoal(0, new FloatGoal(this));
+    }
+
     /** Logic */
     @Override
     public boolean isFlying() {

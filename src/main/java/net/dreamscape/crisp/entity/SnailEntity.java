@@ -1,5 +1,7 @@
 package net.dreamscape.crisp.entity;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Vec3i;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -35,6 +37,8 @@ import software.bernie.geckolib3.core.manager.AnimationFactory;
 
 import java.util.function.Predicate;
 
+import static java.lang.Math.abs;
+
 /**
  * TODO:
  *  - Find any other way to check if the entity is moving (The current way is horrid) {@link SnailEntity#predicate(AnimationEvent)}
@@ -48,13 +52,21 @@ public class SnailEntity extends PathfinderMob implements IAnimatable {
     private final AnimationFactory factory = new AnimationFactory(this);
 
     private <E extends IAnimatable> PlayState predicate(AnimationEvent<E> event) {
+        AnimationBuilder animations = new AnimationBuilder();
+
+        if (this.isClimbing()) {
+            animations.addAnimation("animation.snail.climb", ILoopType.EDefaultLoopTypes.LOOP);
+        }
+
         // If the entity has moved from the last position
         if (!this.position().equals(new Vec3(this.xOld, this.yOld, this.zOld))) {
             event.getController().setAnimationSpeed(0.4D);
-            event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.snail.move", ILoopType.EDefaultLoopTypes.LOOP));
-        } else {
+            animations.addAnimation("animation.snail.move", ILoopType.EDefaultLoopTypes.LOOP);
+        } else if (!isClimbing()) {
             return PlayState.STOP;
         }
+
+        event.getController().setAnimation(animations);
         return PlayState.CONTINUE;
     }
 
@@ -85,8 +97,8 @@ public class SnailEntity extends PathfinderMob implements IAnimatable {
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new PanicGoal(this, 0.18f));
         this.goalSelector.addGoal(1, new RandomStrollGoal(this, 0.1f));
-        this.goalSelector.addGoal(2, new RandomLookAroundGoal(this));
-        this.goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 6.0F));
+        //this.goalSelector.addGoal(2, new RandomLookAroundGoal(this));
+        //this.goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 6.0F));
         super.registerGoals();
     }
 
@@ -121,6 +133,14 @@ public class SnailEntity extends PathfinderMob implements IAnimatable {
 
             if (isClimbing()) {
                 this.setDeltaMovement(this.getDeltaMovement().x, CLIMB_SPEED, this.getDeltaMovement().z);
+                // Snail rotation during climbing
+                if (abs(this.getDeltaMovement().x) > abs(this.getDeltaMovement().z)) {
+                    this.setYRot((this.getDeltaMovement().x < 0) ? 180 : 0);
+                    this.yRotO = -this.yBodyRotO;
+                } else {
+                    this.setYRot(90 + ((this.getDeltaMovement().z < 0) ? 180 : 0));
+                    this.yRotO = -this.yBodyRotO;
+                }
             }
         }
     }
