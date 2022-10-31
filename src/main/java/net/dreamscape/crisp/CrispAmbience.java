@@ -3,8 +3,11 @@ package net.dreamscape.crisp;
 import com.mojang.logging.LogUtils;
 import net.dreamscape.crisp.entity.renderer.ButterflyRenderer;
 import net.dreamscape.crisp.entity.renderer.SnailRenderer;
+import net.dreamscape.crisp.registry.CrispBlocks;
 import net.dreamscape.crisp.registry.CrispItems;
 import net.dreamscape.crisp.registry.CrispEntityTypes;
+import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -37,6 +40,7 @@ public class CrispAmbience
         // CrispAmbience Registries
         CrispEntityTypes.register(modEventBus);
         CrispItems.register(modEventBus);
+        CrispBlocks.register(modEventBus);
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);

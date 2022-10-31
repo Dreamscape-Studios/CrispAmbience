@@ -7,6 +7,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemNameBlockItem;
 import net.minecraftforge.common.ForgeSpawnEggItem;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
@@ -25,8 +26,8 @@ public class CrispItems {
             () -> new ForgeSpawnEggItem(CrispEntityTypes.SNAIL, 0x2345f624, 0x124ba133,
                     new Item.Properties().tab(CreativeModeTab.TAB_MISC)));
 
-    public static final RegistryObject<Item> BROWN_SHELF_SHROOM = ITEMS.register("brown_shelf_shroom",
-            () -> new Item(new Item.Properties().tab(CreativeModeTab.TAB_FOOD).food(new FoodProperties.Builder()
+    public static final RegistryObject<ItemNameBlockItem> BROWN_SHELF_SHROOM = ITEMS.register("brown_shelf_shroom",
+            () -> new ItemNameBlockItem(CrispBlocks.BROWN_SHELF_SHROOM.get(), new Item.Properties().tab(CreativeModeTab.TAB_FOOD).food(new FoodProperties.Builder()
                     .nutrition(3)
                     .saturationMod(0.5f)
                     .effect(() -> new MobEffectInstance(MobEffects.POISON, 100, 0), 1.0F)
