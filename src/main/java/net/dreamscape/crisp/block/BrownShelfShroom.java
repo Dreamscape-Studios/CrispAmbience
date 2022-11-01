@@ -4,6 +4,7 @@ import net.dreamscape.crisp.registry.CrispItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.*;
@@ -24,13 +25,13 @@ import javax.annotation.Nullable;
 
 /**
  * TODO:
- *  - Make the block directional just like {@link net.minecraft.world.level.block.LadderBlock} does it
+ *  - Make the block drop items based on the current age
  */
 
-public class BrownShelfShroom extends CropBlock implements BonemealableBlock {
+public class BrownShelfShroom extends CropBlock {
     public BrownShelfShroom(Properties props) {
         super(props);
-        this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(WATERLOGGED, false));
+        this.registerDefaultState(this.stateDefinition.any().setValue(WATERLOGGED, false));
     }
 
     // LADDER CODE
@@ -44,6 +45,11 @@ public class BrownShelfShroom extends CropBlock implements BonemealableBlock {
     private boolean canAttachTo(BlockGetter pBlockReader, BlockPos pPos, Direction pDirection) {
         BlockState blockstate = pBlockReader.getBlockState(pPos);
         return blockstate.isFaceSturdy(pBlockReader, pPos, pDirection);
+    }
+
+    @Override
+    protected int getBonemealAgeIncrease(Level pLevel) {
+        return Mth.nextInt(pLevel.random, 1, 2);
     }
 
     public boolean canSurvive(BlockState pState, @NotNull LevelReader pLevel, BlockPos pPos) {
@@ -63,6 +69,7 @@ public class BrownShelfShroom extends CropBlock implements BonemealableBlock {
         }
         return EAST_AABB;
     }
+
 
     public BlockState updateShape(BlockState pState, Direction pFacing, BlockState pFacingState, LevelAccessor pLevel, BlockPos pCurrentPos, BlockPos pFacingPos) {
         if (pFacing.getOpposite() == pState.getValue(FACING) && !pState.canSurvive(pLevel, pCurrentPos)) {
@@ -114,24 +121,28 @@ public class BrownShelfShroom extends CropBlock implements BonemealableBlock {
         return true;
     }
 
+    public BlockState getStateForAge(int pAge, BlockState state) {
+        return this.defaultBlockState().setValue(this.getAgeProperty(), Integer.valueOf(pAge)).setValue(FACING, state.getValue(FACING));
+    }
+
+    @Override
+    public void randomTick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRandom) {
+        if (!pLevel.isAreaLoaded(pPos, 1)) return; // Forge: prevent loading unloaded chunks when checking neighbor's light
+        if (pLevel.getRawBrightness(pPos, 0) >= 9) {
+            int i = this.getAge(pState);
+            if (i < this.getMaxAge()) {
+                float f = getGrowthSpeed(this, pLevel, pPos);
+                if (net.minecraftforge.common.ForgeHooks.onCropsGrowPre(pLevel, pPos, pState, pRandom.nextInt((int)(25.0F / f) + 1) == 0)) {
+                    pLevel.setBlock(pPos, this.getStateForAge(i + 1, pState), 2);
+                    net.minecraftforge.common.ForgeHooks.onCropsGrowPost(pLevel, pPos, pState);
+                }
+            }
+        }
+    }
+
     @Override
     protected ItemLike getBaseSeedId() {
         return CrispItems.BROWN_SHELF_SHROOM.get();
-    }
-
-    @Override
-    public boolean isValidBonemealTarget(@NotNull BlockGetter level, @NotNull BlockPos pos, @NotNull BlockState state, boolean isClient) {
-        return false;
-    }
-
-    @Override
-    public boolean isBonemealSuccess(@NotNull Level level, @NotNull RandomSource random, @NotNull BlockPos pos, @NotNull BlockState state) {
-        return false;
-    }
-
-    @Override
-    public void performBonemeal(@NotNull ServerLevel level, @NotNull RandomSource random, @NotNull BlockPos pos, @NotNull BlockState state) {
-
     }
 
     // MISC
