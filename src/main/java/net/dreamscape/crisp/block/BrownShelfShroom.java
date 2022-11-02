@@ -6,6 +6,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.*;
 import net.minecraft.world.level.block.*;
@@ -17,18 +18,20 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 /**
  * TODO:
  *  - Make the block drop items based on the current age
  */
 
-public class BrownShelfShroom extends CropBlock {
+public class BrownShelfShroom extends CropBlock implements BonemealableBlock {
     public BrownShelfShroom(Properties props) {
         super(props);
         this.registerDefaultState(this.stateDefinition.any().setValue(WATERLOGGED, false));
@@ -71,33 +74,33 @@ public class BrownShelfShroom extends CropBlock {
     }
 
 
-    public BlockState updateShape(BlockState pState, Direction pFacing, BlockState pFacingState, LevelAccessor pLevel, BlockPos pCurrentPos, BlockPos pFacingPos) {
-        if (pFacing.getOpposite() == pState.getValue(FACING) && !pState.canSurvive(pLevel, pCurrentPos)) {
+    public BlockState updateShape(BlockState pState, Direction pFacing, BlockState face, LevelAccessor levelAccessor, BlockPos currPos, BlockPos facingPos) {
+        if (pFacing.getOpposite() == pState.getValue(FACING) && !pState.canSurvive(levelAccessor, currPos)) {
             return Blocks.AIR.defaultBlockState();
         } else {
             if (pState.getValue(WATERLOGGED)) {
-                pLevel.scheduleTick(pCurrentPos, Fluids.WATER, Fluids.WATER.getTickDelay(pLevel));
+                levelAccessor.scheduleTick(currPos, Fluids.WATER, Fluids.WATER.getTickDelay(levelAccessor));
             }
 
-            return super.updateShape(pState, pFacing, pFacingState, pLevel, pCurrentPos, pFacingPos);
+            return super.updateShape(pState, pFacing, face, levelAccessor, currPos, facingPos);
         }
     }
 
     @Nullable
-    public BlockState getStateForPlacement(BlockPlaceContext pContext) {
-        if (!pContext.replacingClickedOnBlock()) {
-            BlockState blockstate = pContext.getLevel().getBlockState(pContext.getClickedPos().relative(pContext.getClickedFace().getOpposite()));
-            if (blockstate.is(this) && blockstate.getValue(FACING) == pContext.getClickedFace()) {
+    public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        if (!ctx.replacingClickedOnBlock()) {
+            BlockState blockstate = ctx.getLevel().getBlockState(ctx.getClickedPos().relative(ctx.getClickedFace().getOpposite()));
+            if (blockstate.is(this) && blockstate.getValue(FACING) == ctx.getClickedFace()) {
                 return null;
             }
         }
 
         BlockState blockstate1 = this.defaultBlockState();
-        LevelReader levelreader = pContext.getLevel();
-        BlockPos blockpos = pContext.getClickedPos();
-        FluidState fluidstate = pContext.getLevel().getFluidState(pContext.getClickedPos());
+        LevelReader levelreader = ctx.getLevel();
+        BlockPos blockpos = ctx.getClickedPos();
+        FluidState fluidstate = ctx.getLevel().getFluidState(ctx.getClickedPos());
 
-        for(Direction direction : pContext.getNearestLookingDirections()) {
+        for(Direction direction : ctx.getNearestLookingDirections()) {
             if (direction.getAxis().isHorizontal()) {
                 blockstate1 = blockstate1.setValue(FACING, direction.getOpposite());
                 if (blockstate1.canSurvive(levelreader, blockpos)) {
@@ -121,23 +124,37 @@ public class BrownShelfShroom extends CropBlock {
         return true;
     }
 
-    public BlockState getStateForAge(int pAge, BlockState state) {
-        return this.defaultBlockState().setValue(this.getAgeProperty(), Integer.valueOf(pAge)).setValue(FACING, state.getValue(FACING));
+    public BlockState getStateForAge(int age, BlockState state) {
+        return this.defaultBlockState().setValue(
+                this.getAgeProperty(),
+                Math.min(age, MAX_AGE)
+        ).setValue(FACING, state.getValue(FACING));
     }
 
     @Override
-    public void randomTick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRandom) {
-        if (!pLevel.isAreaLoaded(pPos, 1)) return; // Forge: prevent loading unloaded chunks when checking neighbor's light
-        if (pLevel.getRawBrightness(pPos, 0) >= 9) {
-            int i = this.getAge(pState);
+    public void randomTick(BlockState state, ServerLevel pLevel, BlockPos pos, RandomSource random) {
+        if (!pLevel.isAreaLoaded(pos, 1)) return; // Forge: prevent loading unloaded chunks when checking neighbor's light
+        if (pLevel.getRawBrightness(pos, 0) >= 9) {
+            int i = this.getAge(state);
             if (i < this.getMaxAge()) {
-                float f = getGrowthSpeed(this, pLevel, pPos);
-                if (net.minecraftforge.common.ForgeHooks.onCropsGrowPre(pLevel, pPos, pState, pRandom.nextInt((int)(25.0F / f) + 1) == 0)) {
-                    pLevel.setBlock(pPos, this.getStateForAge(i + 1, pState), 2);
-                    net.minecraftforge.common.ForgeHooks.onCropsGrowPost(pLevel, pPos, pState);
+                float f = getGrowthSpeed(this, pLevel, pos);
+                if (net.minecraftforge.common.ForgeHooks.onCropsGrowPre(pLevel, pos, state, random.nextInt((int)(25.0F / f) + 1) == 0)) {
+                    pLevel.setBlock(pos, this.getStateForAge(i + 1, state), 2);
+                    net.minecraftforge.common.ForgeHooks.onCropsGrowPost(pLevel, pos, state);
                 }
             }
         }
+    }
+
+    @Override
+    public void growCrops(Level level, BlockPos pos, BlockState state) {
+        int i = this.getAge(state) + this.getBonemealAgeIncrease(level);
+        int j = this.getMaxAge();
+        if (i > j) {
+            i = j;
+        }
+
+        level.setBlock(pos, this.getStateForAge(i + 1, state), 2);
     }
 
     @Override
